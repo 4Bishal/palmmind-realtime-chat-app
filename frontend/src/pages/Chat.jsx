@@ -6,8 +6,14 @@ import MessageBox from "../components/MessageBox";
 
 import { useAuth } from "../context/AuthContext";
 
+import socket from "../socket/socket";
+
 function Chat() {
     const { user } = useAuth();
+
+    // tolerate different shapes returned by auth API
+    const currentUserId =
+        user?._id || user?.id || user?.user?._id || user?.data?._id || null;
 
     const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
@@ -16,6 +22,8 @@ function Chat() {
     const [text, setText] = useState("");
 
     const [loading, setLoading] = useState(true);
+
+    const [onlineUsers, setOnlineUsers] = useState([]);
 
     // Fetch users (handle API returning either an array or an object { users })
     const fetchUsers = async () => {
@@ -26,7 +34,7 @@ function Chat() {
                 ? res.data
                 : res.data?.users || [];
 
-            const filtered = all.filter((u) => u._id !== user._id);
+            const filtered = all.filter((u) => String(u._id) !== String(currentUserId));
             setUsers(filtered);
         } catch (err) {
             console.error(err.response?.data || err.message);
@@ -54,6 +62,8 @@ function Chat() {
     useEffect(() => {
         if (user) {
             fetchUsers();
+        } else {
+            setUsers([]);
         }
     }, [user]);
 
@@ -70,7 +80,7 @@ function Chat() {
 
         const tempMessage = {
             _id: Date.now(),
-            senderId: user._id,
+            senderId: currentUserId || user._id,
             receiverId: selectedUser._id,
             message: text,
         };
@@ -78,6 +88,39 @@ function Chat() {
         setMessages((prev) => [...prev, tempMessage]);
         setText("");
     };
+
+    // Socket listeners for online/offline users
+    useEffect(() => {
+        socket.on("user:online", (payload) => {
+            const userId = payload?.userId || payload;
+            if (!userId) return;
+
+            setOnlineUsers((prev) => {
+                if (prev.includes(userId)) return prev;
+                return [...prev, userId];
+            });
+        });
+
+        socket.on("user:offline", (payload) => {
+            const userId = payload?.userId || payload;
+            if (!userId) return;
+
+            setOnlineUsers((prev) => prev.filter((id) => id !== userId));
+        });
+
+        // initialize online users list when joining
+        socket.on("online:list", (list) => {
+            if (Array.isArray(list)) {
+                setOnlineUsers(list);
+            }
+        });
+
+        return () => {
+            socket.off("user:online");
+            socket.off("user:offline");
+            socket.off("online:list");
+        };
+    }, []);
 
     if (loading) {
         return (
@@ -94,10 +137,12 @@ function Chat() {
                 users={users}
                 selectedUser={selectedUser}
                 setSelectedUser={setSelectedUser}
+                onlineUsers={onlineUsers}
             />
 
             {/* CHAT AREA */}
             <div className="flex flex-col flex-1">
+
                 {selectedUser ? (
                     <>
                         {/* HEADER */}

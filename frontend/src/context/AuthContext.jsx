@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import API from "../api/axios";
 
+import socket, { setSocketAuthToken } from "../socket/socket";
+
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
@@ -12,6 +14,14 @@ export function AuthProvider({ children }) {
             const response = await API.get("/auth/me");
 
             setUser(response.data);
+
+            // Ensure the socket handshake includes the auth token before connecting
+            const token = localStorage.getItem("token");
+            setSocketAuthToken(token);
+
+            socket.connect();
+            socket.emit("join", response.data._id);
+
         } catch (error) {
             console.error(error.response?.data || error.message);
 
@@ -35,6 +45,10 @@ export function AuthProvider({ children }) {
     const logout = () => {
         localStorage.removeItem("token");
         setUser(null);
+
+        // clear auth and disconnect socket on logout
+        setSocketAuthToken(null);
+        socket.disconnect();
     };
 
     return (
