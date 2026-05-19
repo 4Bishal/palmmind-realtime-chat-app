@@ -24,16 +24,18 @@ const chatHandler = (io, socket) => {
             });
 
             // 3. Emit to receiver room
-            io.to(receiverId).emit("message:receive", {
+            const payload = {
                 _id: newMessage._id,
                 senderId: socket.user.id,
                 receiverId,
                 message,
                 createdAt: newMessage.createdAt,
-            });
+            };
 
-            // 4. Optional: send back confirmation to sender
-            socket.emit("message:sent", newMessage);
+            io.to(receiverId).emit("message:receive", payload);
+
+            // 4. Also emit to sender so both sides receive the saved message
+            io.to(socket.user.id).emit("message:receive", payload);
 
         } catch (error) {
             console.error("Message send error:", error);
