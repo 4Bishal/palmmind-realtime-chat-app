@@ -5,6 +5,8 @@ import cors from 'cors'
 import { connectDB } from "./config/db.js"
 
 import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/usersRoute.js";
+
 import http from "http";
 import initializeSocket from "./socket/index.js";
 
@@ -20,7 +22,7 @@ app.use(express.json());
 
 // routes
 app.use("/api/auth", authRoutes);
-
+app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
     res.send("API Running");
