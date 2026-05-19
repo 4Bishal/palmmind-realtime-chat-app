@@ -52,7 +52,20 @@ function Chat() {
                 ? res.data
                 : res.data?.messages || [];
 
-            setMessages(all);
+            // normalize messages to consistent shape
+            const normalized = all.map((m) => ({
+                _id: String(m._id ?? m.clientId ?? Date.now()),
+                senderId: m.senderId,
+                receiverId: m.receiverId,
+                message: m.message ?? "",
+                createdAt: m.createdAt
+                    ? typeof m.createdAt === "string"
+                        ? m.createdAt
+                        : new Date(m.createdAt).toISOString()
+                    : new Date().toISOString(),
+            }));
+
+            setMessages(normalized);
         } catch (err) {
             console.error(err.response?.data || err.message);
             setMessages([]);
@@ -71,6 +84,8 @@ function Chat() {
     useEffect(() => {
         if (selectedUser) {
             fetchMessages(selectedUser._id);
+        } else {
+            setMessages([]);
         }
     }, [selectedUser]);
 
@@ -78,15 +93,22 @@ function Chat() {
     const sendMessage = () => {
         if (!text.trim()) return;
 
+        const tempId = `temp_${Date.now()}`;
+
         const messageData = {
-            _id: Date.now(),
+            _id: tempId, // temporary id for optimistic UI
             senderId: currentUserId || user._id,
             receiverId: selectedUser._id,
             message: text,
+            createdAt: new Date().toISOString(),
         };
 
-        // emit to backend
-        socket.emit("message:send", messageData);
+        // emit to backend including clientId so server can correlate and return real _id
+        socket.emit("message:send", {
+            clientId: tempId,
+            receiverId: selectedUser._id,
+            message: text,
+        });
 
         // optimistic UI update
         setMessages((prev) => [...prev, messageData]);
@@ -96,7 +118,7 @@ function Chat() {
 
     // Socket listeners for online/offline users
     useEffect(() => {
-        socket.on("user:online", (payload) => {
+        const handleUserOnline = (payload) => {
             const userId = payload?.userId || payload;
             if (!userId) return;
 
@@ -104,37 +126,41 @@ function Chat() {
                 if (prev.includes(userId)) return prev;
                 return [...prev, userId];
             });
-        });
+        };
 
-        socket.on("user:offline", (payload) => {
+        const handleUserOffline = (payload) => {
             const userId = payload?.userId || payload;
             if (!userId) return;
 
             setOnlineUsers((prev) => prev.filter((id) => id !== userId));
-        });
+        };
 
         // initialize online users list when joining
-        socket.on("online:list", (list) => {
+        const handleOnlineList = (list) => {
             if (Array.isArray(list)) {
                 setOnlineUsers(list);
             }
-        });
+        };
+
+        socket.on("user:online", handleUserOnline);
+        socket.on("user:offline", handleUserOffline);
+        socket.on("online:list", handleOnlineList);
 
         return () => {
-            socket.off("user:online");
-            socket.off("user:offline");
-            socket.off("online:list");
+            socket.off("user:online", handleUserOnline);
+            socket.off("user:offline", handleUserOffline);
+            socket.off("online:list", handleOnlineList);
         };
     }, []);
 
     // Listen for incoming messages from socket
     useEffect(() => {
-        socket.on("message:receive", (message) => {
+        const handleMessage = (raw) => {
             // only show if message belongs to current chat (either direction)
             if (!selectedUser || !user) return;
 
-            const sid = String(message.senderId);
-            const rid = String(message.receiverId);
+            const sid = String(raw.senderId);
+            const rid = String(raw.receiverId);
             const sel = String(selectedUser?._id);
             const me = String(currentUserId || user?._id);
 
@@ -142,15 +168,39 @@ function Chat() {
 
             if (!belongsToChat) return;
 
-            // avoid duplicates if server message already present
+            const message = {
+                _id: String(raw._id ?? raw.clientId ?? `msg_${Date.now()}`),
+                senderId: raw.senderId,
+                receiverId: raw.receiverId,
+                message: raw.message ?? "",
+                createdAt: raw.createdAt
+                    ? typeof raw.createdAt === "string"
+                        ? raw.createdAt
+                        : new Date(raw.createdAt).toISOString()
+                    : new Date().toISOString(),
+            };
+
             setMessages((prev) => {
+                // If server returned a clientId, replace any optimistic message that used temp _id
+                if (raw.clientId) {
+                    const idx = prev.findIndex((m) => String(m._id) === String(raw.clientId));
+                    if (idx !== -1) {
+                        const next = [...prev];
+                        next[idx] = message;
+                        return next;
+                    }
+                }
+
+                // Avoid duplicate by server _id
                 if (prev.some((m) => String(m._id) === String(message._id))) return prev;
                 return [...prev, message];
             });
-        });
+        };
+
+        socket.on("message:receive", handleMessage);
 
         return () => {
-            socket.off("message:receive");
+            socket.off("message:receive", handleMessage);
         };
     }, [selectedUser, user]);
 
