@@ -78,14 +78,19 @@ function Chat() {
     const sendMessage = () => {
         if (!text.trim()) return;
 
-        const tempMessage = {
+        const messageData = {
             _id: Date.now(),
             senderId: currentUserId || user._id,
             receiverId: selectedUser._id,
             message: text,
         };
 
-        setMessages((prev) => [...prev, tempMessage]);
+        // emit to backend
+        socket.emit("message:send", messageData);
+
+        // optimistic UI update
+        setMessages((prev) => [...prev, messageData]);
+
         setText("");
     };
 
@@ -121,6 +126,33 @@ function Chat() {
             socket.off("online:list");
         };
     }, []);
+
+    // Listen for incoming messages from socket
+    useEffect(() => {
+        socket.on("message:receive", (message) => {
+            // only show if message belongs to current chat (either direction)
+            if (!selectedUser || !user) return;
+
+            const sid = String(message.senderId);
+            const rid = String(message.receiverId);
+            const sel = String(selectedUser?._id);
+            const me = String(currentUserId || user?._id);
+
+            const belongsToChat = (sid === sel && rid === me) || (sid === me && rid === sel);
+
+            if (!belongsToChat) return;
+
+            // avoid duplicates if server message already present
+            setMessages((prev) => {
+                if (prev.some((m) => String(m._id) === String(message._id))) return prev;
+                return [...prev, message];
+            });
+        });
+
+        return () => {
+            socket.off("message:receive");
+        };
+    }, [selectedUser, user]);
 
     if (loading) {
         return (
@@ -163,13 +195,21 @@ function Chat() {
                             <input
                                 value={text}
                                 onChange={(e) => setText(e.target.value)}
-                                className="flex-1 border p-2 rounded"
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault();
+                                        sendMessage();
+                                    }
+                                }}
+                                className="flex-1 border p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
                                 placeholder="Type a message..."
+                                aria-label="Type a message"
                             />
 
                             <button
                                 onClick={sendMessage}
-                                className="bg-black text-white px-4 py-2 rounded"
+                                className="bg-black text-white px-5 py-3 rounded-md hover:opacity-90"
+                                aria-label="Send message"
                             >
                                 Send
                             </button>
