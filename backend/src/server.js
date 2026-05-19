@@ -6,6 +6,7 @@ import { connectDB } from "./config/db.js"
 
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/usersRoute.js";
+import messageRoutes from "./routes/messageRoutes.js";
 
 import http from "http";
 import initializeSocket from "./socket/index.js";
@@ -23,6 +24,7 @@ app.use(express.json());
 // routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/messages", messageRoutes);
 
 app.get("/", (req, res) => {
     res.send("API Running");
