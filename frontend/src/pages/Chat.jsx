@@ -85,6 +85,8 @@ function Chat() {
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
 
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
     const scrollToBottom = () =>
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 
@@ -143,6 +145,10 @@ function Chat() {
             createdAt: new Date().toISOString(),
         }]);
         setText("");
+        // reset textarea height
+        if (inputRef.current) {
+            inputRef.current.style.height = "auto";
+        }
         inputRef.current?.focus();
     };
 
@@ -270,12 +276,56 @@ function Chat() {
                         <span style={styles.footerName}>{displayName}</span>
                         <button
                             className="logout-btn"
-                            onClick={handleLogout}
+                            onClick={() => setShowLogoutConfirm(true)}
                             title="Logout"
                             aria-label="Logout"
                         >
                             <LogoutIcon />
                         </button>
+
+                        {showLogoutConfirm && (
+                            <div style={{
+                                position: "fixed", inset: 0,
+                                background: "rgba(26,25,22,0.35)",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                zIndex: 999,
+                            }}>
+                                <div style={{
+                                    background: "#fff", borderRadius: 14,
+                                    padding: "1.5rem 1.75rem", maxWidth: 300, width: "90%",
+                                    boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
+                                    fontFamily: "'DM Sans', sans-serif",
+                                }}>
+                                    <p style={{ fontSize: "1rem", fontWeight: 500, color: "#1a1916", marginBottom: "0.4rem" }}>
+                                        Log out?
+                                    </p>
+                                    <p style={{ fontSize: "0.8125rem", color: "#9a9589", marginBottom: "1.25rem" }}>
+                                        You'll need to sign back in to continue chatting.
+                                    </p>
+                                    <div style={{ display: "flex", gap: "0.625rem", justifyContent: "flex-end" }}>
+                                        <button
+                                            onClick={() => setShowLogoutConfirm(false)}
+                                            style={{
+                                                padding: "0.5rem 1rem", border: "1px solid #e0dbd2",
+                                                borderRadius: 8, background: "transparent",
+                                                fontSize: "0.875rem", cursor: "pointer", color: "#6b6760",
+                                            }}>
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleLogout}
+                                            style={{
+                                                padding: "0.5rem 1rem", border: "none",
+                                                borderRadius: 8, background: "#1a1916",
+                                                fontSize: "0.875rem", cursor: "pointer",
+                                                color: "#f5f3ef", fontWeight: 600,
+                                            }}>
+                                            Log out
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </aside>
 
@@ -353,19 +403,26 @@ function Chat() {
 
                             {/* Input area */}
                             <div style={styles.inputArea}>
-                                <input
+                                <textarea
                                     ref={inputRef}
                                     className="chat-input"
                                     value={text}
-                                    onChange={(e) => setText(e.target.value)}
+                                    rows={1}
+                                    onChange={(e) => {
+                                        setText(e.target.value);
+                                        e.target.style.height = "auto";
+                                        e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+                                    }}
                                     onKeyDown={(e) => {
                                         if (e.key === "Enter" && !e.shiftKey) {
                                             e.preventDefault();
                                             sendMessage();
                                         }
+                                        // Shift+Enter falls through naturally → inserts newline
                                     }}
                                     placeholder={`Message ${selectedUser.username}…`}
                                     aria-label="Type a message"
+                                    style={{ overflowY: "auto" }}
                                 />
                                 <button
                                     className="send-btn"

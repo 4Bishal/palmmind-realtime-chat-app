@@ -4,14 +4,16 @@ export const globalCSS = `
     html, body, #root { height: 100%; }
     body { font-family: 'DM Sans', sans-serif; background: #f5f3ef; }
 
-    .msg-bubble {
-        max-width: 68%;
-        padding: 0.55rem 0.9rem;
-        border-radius: 14px;
-        font-size: 0.875rem;
-        line-height: 1.5;
-        word-break: break-word;
-    }
+.msg-bubble {
+    min-width: 48px;
+    width: fit-content;
+    padding: 0.55rem 0.9rem;
+    border-radius: 14px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
     .msg-bubble.mine {
         background: #1a1916;
         color: #f5f3ef;
