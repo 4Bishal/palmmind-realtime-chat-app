@@ -11,7 +11,7 @@ const chatHandler = (io, socket) => {
 
     socket.on("message:send", async (data) => {
         try {
-            const { receiverId, message } = data;
+            const { receiverId, message, clientId } = data;
 
             // 1. Validate input
             if (!receiverId || !message) return;
@@ -23,13 +23,14 @@ const chatHandler = (io, socket) => {
                 message,
             });
 
-            // 3. Emit to receiver room
+            // 3. Emit to receiver room (include clientId if provided)
             const payload = {
                 _id: newMessage._id,
+                clientId: clientId || undefined,
                 senderId: socket.user.id,
                 receiverId,
                 message,
-                createdAt: newMessage.createdAt,
+                createdAt: newMessage.createdAt ? newMessage.createdAt.toISOString() : new Date().toISOString(),
             };
 
             io.to(receiverId).emit("message:receive", payload);
