@@ -2,8 +2,12 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
 
+import { useAuth } from "../context/AuthContext";
+
 function Login() {
     const navigate = useNavigate();
+
+    const { setUser } = useAuth();
 
     const [formData, setFormData] = useState({
         email: "",
@@ -26,6 +30,8 @@ function Login() {
             console.log(response.data);
 
             localStorage.setItem("token", response.data.token);
+
+            setUser(response.data.user);
 
             navigate("/chat");
         } catch (error) {
