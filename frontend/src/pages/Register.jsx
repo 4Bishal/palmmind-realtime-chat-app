@@ -1,83 +1,130 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
+import { useAuth } from "../context/AuthContext";
+import './Auth.css';
 
 function Register() {
     const navigate = useNavigate();
 
-    const [formData, setFormData] = useState({
-        username: "",
-        email: "",
-        password: "",
-    });
+    const { user } = useAuth();
+
+    const [formData, setFormData] = useState({ username: "", email: "", password: "" });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
     const handleChange = (e) => {
-        setFormData((prev) => ({
-            ...prev,
-            [e.target.name]: e.target.value,
-        }));
+        setError("");
+        setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    useEffect(() => {
+        // If already authenticated, redirect to chat
+        if (user) {
+            navigate("/chat");
+        }
+    }, [user, navigate]);
+
+    const validate = () => {
+        if (!formData.username || formData.username.trim().length < 3) {
+            setError("Username must be at least 3 characters");
+            return false;
+        }
+
+        const emailRegex = /^\S+@\S+\.\S+$/;
+        if (!formData.email || !emailRegex.test(formData.email)) {
+            setError("Please provide a valid email address");
+            return false;
+        }
+
+        if (!formData.password || formData.password.length < 6) {
+            setError("Password must be at least 6 characters");
+            return false;
+        }
+
+        return true;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        setError("");
+
+        // Client-side validation
+        if (!validate()) return;
+
+        setLoading(true);
         try {
-            const response = await API.post("/auth/register", formData);
-
-            console.log(response.data);
-
+            await API.post("/auth/register", formData);
             navigate("/login");
         } catch (error) {
-            console.error(error.response?.data || error.message);
+            setError(error.response?.data?.message || "Registration failed. Please try again.");
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-            <form
-                onSubmit={handleSubmit}
-                className="bg-white p-6 rounded-lg shadow-md w-80"
-            >
-                <h1 className="text-2xl font-bold mb-4 text-center">Register</h1>
+        <div className="auth-root">
+            <div className="auth-card">
+                <p className="auth-wordmark">Create account</p>
+                <p className="auth-subtitle">Join and start chatting instantly</p>
 
-                <input
-                    type="text"
-                    name="username"
-                    placeholder="Username"
-                    className="w-full border p-2 mb-3 rounded"
-                    onChange={handleChange}
-                />
+                <form onSubmit={handleSubmit}>
+                    {error && <div className="auth-error">{error}</div>}
 
-                <input
-                    type="email"
-                    name="email"
-                    placeholder="Email"
-                    className="w-full border p-2 mb-3 rounded"
-                    onChange={handleChange}
-                />
+                    <div className="auth-field">
+                        <label className="auth-label" htmlFor="username">Username</label>
+                        <input
+                            id="username"
+                            type="text"
+                            name="username"
+                            className="auth-input"
+                            placeholder="yourname"
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
 
-                <input
-                    type="password"
-                    name="password"
-                    placeholder="Password"
-                    className="w-full border p-2 mb-3 rounded"
-                    onChange={handleChange}
-                />
+                    <div className="auth-field">
+                        <label className="auth-label" htmlFor="email">Email</label>
+                        <input
+                            id="email"
+                            type="email"
+                            name="email"
+                            className="auth-input"
+                            placeholder="you@example.com"
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
 
-                <button
-                    type="submit"
-                    className="w-full bg-black text-white py-2 rounded"
-                >
-                    Register
-                </button>
+                    <div className="auth-field">
+                        <label className="auth-label" htmlFor="password">Password</label>
+                        <input
+                            id="password"
+                            type="password"
+                            name="password"
+                            className="auth-input"
+                            placeholder="••••••••"
+                            onChange={handleChange}
+                            required
+                        />
+                        <p className="password-hint">At least 6 characters</p>
+                    </div>
 
-                <p className="mt-4 text-sm text-center">
+                    <button type="submit" className="auth-btn" disabled={loading}>
+                        {loading ? "Creating account…" : "Create account"}
+                    </button>
+                </form>
+
+                <div className="auth-divider" />
+
+                <p className="auth-footer">
                     Already have an account?{" "}
-                    <Link to="/login" className="text-blue-500">
-                        Login
-                    </Link>
+                    <Link to="/login">Sign in</Link>
                 </p>
-            </form>
+            </div>
         </div>
     );
 }

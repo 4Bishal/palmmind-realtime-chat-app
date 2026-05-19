@@ -6,6 +6,8 @@ import Chat from "./pages/Chat";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
+import NotFound from "./pages/NotFound";
+
 function App() {
   return (
     <Routes>
@@ -23,6 +25,8 @@ function App() {
           </ProtectedRoute>
         }
       />
+
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

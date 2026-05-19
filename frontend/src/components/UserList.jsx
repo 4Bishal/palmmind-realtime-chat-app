@@ -16,19 +16,10 @@ function UserList({ users, selectedUser, setSelectedUser, onlineUsers = [] }) {
                         <p className="font-medium">
                             {user.username}
                             <span
-                                className={`inline-block w-2 h-2 rounded-full ${onlineUsers.includes(user._id)
+                                className={`inline-block ml-2 align-middle w-2 h-2 rounded-full ${onlineUsers.includes(user._id)
                                     ? "bg-green-500"
                                     : "bg-gray-400"
                                     }`}
-                                style={{
-                                    display: "inline-block",
-                                    width: 8,
-                                    height: 8,
-                                    backgroundColor: onlineUsers.includes(user._id) ? "#16a34a" : "#9ca3af",
-                                    borderRadius: 9999,
-                                    marginLeft: 8,
-                                    verticalAlign: "middle",
-                                }}
                                 aria-hidden="true"
                             />
                         </p>
