@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
 import socketAuth from "./socketAuth.js";
 import chatHandler from "./handlers/chatHandler.js";
-import { userConnected, userDisconnected } from "./presence.js";
+import { userConnected, userDisconnected, getOnlineUsers } from "./presence.js";
 
 const initializeSocket = (server) => {
     const clientUrl = process.env.CLIENT_URL;
@@ -25,10 +25,13 @@ const initializeSocket = (server) => {
         // TRACK ONLINE USER
         userConnected(socket.user.id, socket.id);
 
-        // EMIT TO USER THEMSELVES
-        io.to(socket.user.id).emit("user:online", {
-            userId: socket.user.id,
-        });
+        // Broadcast to all clients that this user is online
+        const onlinePayload = { userId: socket.user.id };
+        io.emit("user:online", onlinePayload);
+
+        // Send the current online users list to the newly connected client
+        const list = getOnlineUsers();
+        socket.emit("online:list", list);
 
         chatHandler(io, socket);
 
