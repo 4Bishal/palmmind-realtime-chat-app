@@ -22,12 +22,13 @@ const initializeSocket = (server) => {
         // JOIN USER ROOM
         socket.join(socket.user.id);
 
-        // TRACK ONLINE USER
-        userConnected(socket.user.id, socket.id);
+        // TRACK ONLINE USER (support multiple sockets per user)
+        const connectedCount = userConnected(socket.user.id, socket.id);
 
-        // Broadcast to all clients that this user is online
-        const onlinePayload = { userId: socket.user.id };
-        io.emit("user:online", onlinePayload);
+        // Broadcast to all clients that this user is online only if this is their first socket
+        if (connectedCount === 1) {
+            io.emit("user:online", { userId: socket.user.id });
+        }
 
         // Send the current online users list to the newly connected client
         const list = getOnlineUsers();
@@ -38,11 +39,14 @@ const initializeSocket = (server) => {
         socket.on("disconnect", () => {
             console.log(`User disconnected: ${socket.user.email}`);
 
-            userDisconnected(socket.user.id);
+            const remaining = userDisconnected(socket.user.id, socket.id);
 
-            io.emit("user:offline", {
-                userId: socket.user.id,
-            });
+            // Only broadcast offline when no sockets remain for this user
+            if (remaining === 0) {
+                io.emit("user:offline", {
+                    userId: socket.user.id,
+                });
+            }
         });
     });
 
