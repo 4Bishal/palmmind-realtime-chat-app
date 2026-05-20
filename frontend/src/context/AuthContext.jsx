@@ -42,6 +42,21 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
+    // Ensure socket is connected when `user` becomes available (e.g. after login)
+    useEffect(() => {
+        if (!user) return;
+
+        const token = localStorage.getItem("token");
+        setSocketAuthToken(token);
+
+        if (!socket.connected) {
+            socket.connect();
+        }
+
+        // notify server to join the user's room
+        socket.emit("join", user._id);
+    }, [user]);
+
     const logout = () => {
         localStorage.removeItem("token");
         setUser(null);
